@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard Backlog Incidentes TI</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- jsPDF (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <!-- jsPDF-AutoTable (debe ir DESPUÉS de jsPDF) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js"></script>
+
+  <!-- Chart.js + DataLabels -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+  <!-- PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+</head>
+
+<body>
+  <header class="topbar">
+    <a href="index.html"> <!-- Enlace a la página principal -->
+      <img src="LOGO.png" alt="Logo de Banco Unión S.A" width="150" height="50">
+    </a>
+    <h1>📊 Dashboard Backlog Incidentes TI - Gestión de Incidentes Nivel 2</h1>
+    <div class="actions">
+      <label for="csvFile" class="button">📂 Cargar CSV</label>
+      <input id="csvFile" type="file" accept=".csv" style="display:none" />
+      <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
+      <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
+      <button id="btnClear" class="button secondary">🧹 Limpiar caché</button>
+      <span id="lastUpdate" class="muted">Última actualización: —</span>
+    </div>
+  </header>
+
+  <!-- Banner de estado -->
+  <div class="status-banner">
+    <span>📄 Archivo:</span>
+    <span id="bannerFile" class="pill">—</span>
+    <span>⏰ Guardado:</span>
+    <span id="bannerSaved" class="pill">—</span>
+  </div>
+
+  <main class="page">
+    <!-- GRÁFICAS: 3 filas × 2 columnas -->
+    <div class="charts-grid">
+      <!-- Fila 1 -->
+      <section class="card kpi">
+        <h2>Incidentes Reportados</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartIncidentes"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Abiertos VS Cerrados</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartEstado"></canvas>
+        </div>
+      </section>
+
+      <!-- Fila 2 -->
+      <section class="card">
+        <h2>Tiempo Tickets (Promedio)</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartTiempo"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Responsables</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartResponsables"></canvas>
+        </div>
+      </section>
+
+      <!-- Fila 3 -->
+      <section class="card">
+        <h2>Tipificación por Servicio</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartServicio"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Proveedores</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartProveedor"></canvas>
+        </div>
+      </section>
+
+      <!-- Fila 4 -->
+      <section class="card">
+        <h2>Categoría — Abiertos vs Cerrados</h2>
+        <div class="canvas-wrap">
+          <canvas id="chartCategoria"></canvas>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Tabla Datos Detallados -->
+    <section class="card wide">
+      <h2>Datos Detallados</h2>
+      <div class="table-responsive">
+        <table id="tablaDatos">
+          <thead>
+            <tr><!-- Se llena dinámicamente según el CSV --></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="100" class="muted">Cargando datos...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Creado por: John Jairo Vargas González - Ingeniero de Soluciones TI - john.vargas@bancounion.com<br />
+    <span class="muted">"Transformando ideas en soluciones tecnológicas"</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
