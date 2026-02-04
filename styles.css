@@ -108,20 +108,15 @@ body {
 /* Contenedor de gráficas */
 .charts-grid {
     display: grid;
-    grid-template-columns: 1fr; /* una sola columna */
+    grid-template-columns: 1fr;
     width: 100%;
+    gap: 32px; /* 👈 separación real entre gráficas */
 }
 
-.chart-container {
-    width: 100%;
-}
-
-.chart-container canvas {
-    width: 100% !important;
-}
-
+/* Card */
 .card {
     box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    padding: 16px;
 }
 
 /* KPI ocupa su altura configurada */
