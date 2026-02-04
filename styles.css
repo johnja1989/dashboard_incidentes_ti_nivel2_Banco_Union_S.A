@@ -112,19 +112,12 @@ body {
     width: 100%;
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid #1f2937;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  min-height: var(--height-chart);
+.chart-container {
+    width: 100%;
 }
 
-.card h2 {
-  margin: 0 0 8px 0;
-  font-size: 1rem;
+.chart-container canvas {
+    width: 100% !important;
 }
 
 /* KPI ocupa su altura configurada */
