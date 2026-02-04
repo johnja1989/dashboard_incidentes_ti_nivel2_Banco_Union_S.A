@@ -109,14 +109,23 @@ body {
 .charts-grid {
     display: grid;
     grid-template-columns: 1fr;
-    width: 100%;
     gap: 20px; /* 👈 separación real entre gráficas */
 }
 
 /* Card */
 .card {
-    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-    padding: 16px;
+  background: var(--card);
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: var(--height-chart);
+}
+
+.card h2 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
 }
 
 /* KPI ocupa su altura configurada */
