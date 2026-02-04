@@ -105,12 +105,11 @@ body {
   gap: 16px;
 }
 
-/* Contenedor de gráficas en 3 filas × 2 columnas */
+/* Contenedor de gráficas */
 .charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, auto);
-  gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr; /* una sola columna */
+    width: 100%;
 }
 
 .card {
