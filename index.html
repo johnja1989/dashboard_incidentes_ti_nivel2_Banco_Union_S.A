@@ -287,6 +287,15 @@
   }
 
   /* === ESTILOS GITHUB SYNC === */
+
+  /* Panel de admin - oculto por defecto */
+  .github-config-panel {
+    display: none;
+  }
+  .github-config-panel.admin-mode {
+    display: block;
+  }
+
   .github-config-panel {
     background: linear-gradient(135deg, #e6e6fa 0%, #f0e6ff 100%);
     border: 2px solid #9370db;
@@ -483,6 +492,9 @@
       <div class="github-actions">
         <button class="github-btn github-btn-primary" id="btnTestConnection">🔍 Probar Conexión</button>
         <button class="github-btn github-btn-primary" id="btnSaveConfig">💾 Guardar Configuración</button>
+        <button class="github-btn github-btn-primary" id="btnCopyUrls" style="background: #6c757d;">
+          📋 Copiar URLs
+        </button>
       </div>
       <div class="github-info">
         <div class="github-info-item"><strong>Admin:</strong> Solo el administrador configura token.</div>
@@ -589,6 +601,29 @@
   </footer>
 
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+
+    // ==========================================
+    // DETECCIÓN DE MODO ADMINISTRADOR
+    // ==========================================
+    
+    function isAdminMode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('admin') === '1';
+    }
+    
+    function showAdminPanel() {
+      const panel = document.querySelector('.github-config-panel');
+      if (panel && isAdminMode()) {
+        panel.classList.add('admin-mode');
+        console.log('👤 Modo Administrador activado');
+      } else {
+        console.log('👥 Modo Usuario normal');
+      }
+    }
+    
+    // Ejecutar inmediatamente
+    showAdminPanel();
+    
     /** 
  * Dashboard Incidentes TI — Banco Unión
  * - CSV -> Visualizaciones (Chart.js + DataLabels)
@@ -3815,6 +3850,15 @@ ${JSON.stringify(payloadKPI, null, 2)}
         }
       
   /* === ESTILOS GITHUB SYNC === */
+
+  /* Panel de admin - oculto por defecto */
+  .github-config-panel {
+    display: none;
+  }
+  .github-config-panel.admin-mode {
+    display: block;
+  }
+
   .github-config-panel {
     background: linear-gradient(135deg, #e6e6fa 0%, #f0e6ff 100%);
     border: 2px solid #9370db;
@@ -4357,7 +4401,23 @@ ${JSON.stringify(payloadKPI, null, 2)}
         statusEl.style.display = 'inline-flex';
       }
       
-      alert('✅ Configuración guardada correctamente');
+      // Generar URLs para compartir
+      const baseUrl = window.location.origin + window.location.pathname;
+      const adminUrl = baseUrl + '?admin=1';
+      const userUrl = baseUrl;
+      
+      alert(`✅ Configuración guardada correctamente!
+
+📋 URLS PARA COMPARTIR:
+
+🔐 ADMIN (solo para ti):
+${adminUrl}
+
+👥 USUARIOS (sin configuración):
+${userUrl}
+
+💡 Los usuarios normales verán automáticamente los datos desde GitHub sin necesidad de configurar nada.`);
+      
       return true;
     }
     
@@ -4458,6 +4518,35 @@ ${JSON.stringify(payloadKPI, null, 2)}
       }
     }
     
+
+    function copyUrlsToClipboard() {
+      const config = loadGithubConfig();
+      if (!config || !config.user || !config.repo) {
+        alert('⚠️ Primero guarda la configuración');
+        return;
+      }
+      
+      const baseUrl = window.location.origin + window.location.pathname;
+      const adminUrl = baseUrl + '?admin=1';
+      const userUrl = baseUrl;
+      
+      const text = `URLS DEL DASHBOARD DE INCIDENTES TI
+
+🔐 URL ADMINISTRADOR (solo para ti):
+${adminUrl}
+
+👥 URL USUARIOS (compartir con el equipo):
+${userUrl}
+
+💡 Los usuarios verán automáticamente los datos actualizados desde GitHub.`;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('✅ URLs copiadas al portapapeles!');
+      }).catch(() => {
+        prompt('📋 Copia estas URLs:', text);
+      });
+    }
+    
     // Inicialización
     setTimeout(function() {
       const btnTest = document.getElementById('btnTestConnection');
@@ -4465,6 +4554,9 @@ ${JSON.stringify(payloadKPI, null, 2)}
       
       if(btnTest) btnTest.addEventListener('click', testGithubConnection);
       if(btnSave) btnSave.addEventListener('click', saveGithubConfig);
+      
+      const btnCopyUrls = document.getElementById('btnCopyUrls');
+      if(btnCopyUrls) btnCopyUrls.addEventListener('click', copyUrlsToClipboard);
       
       loadGithubConfig();
       
