@@ -1,4 +1,3 @@
-
 /** 
  * Dashboard Incidentes TI — Banco Unión
  * - CSV -> Visualizaciones (Chart.js + DataLabels)
@@ -874,27 +873,36 @@ function renderChartsAdaptive() {
   } else { showPlaceholder('chartResponsables'); }
   // Servicio — Solo casos ABIERTOS
   const colServ = schema.roles.servicio;
-  if (colServ && colEstado) {
-    const OPEN_TERMS_SERV = ['abierto', 'open', 'pendiente', 'en progreso', 'en curso', 'asignado', 'reabierto'];
-    
-    // Filtrar solo casos abiertos
-    const casosAbiertos = rawData.filter(function (r) {
-      const s = norm(String(r[colEstado] || ''));
-      return OPEN_TERMS_SERV.some(function (t) { return s.indexOf(norm(t)) >= 0; });
-    });
-    
-    const counts = countBy(casosAbiertos, colServ).map(function (d) { return { label: cleanText(d.label), value: Math.round(d.value) }; });
-    const labels = counts.map(function (d) { return d.label; });
-    const valores = counts.map(function (d) { return d.value; });
-    const totalServ = valores.reduce(function (a, b) { return a + (Number(b) || 0); }, 0);
-    const percServicios = valores.map(function (v) { return totalServ ? (Number(v) / totalServ) * 100 : 0; });
-    buildMultiBar('chartServicio', labels, [
-      { label: 'Casos Abiertos', data: valores, backgroundColor: '#4cc9f0', borderColor: '#3182ce' }
-    ], {
-      stacked: false, showEachBarPercentLabels: true,
-      percentsByDataset: { 0: percServicios },
-      percentTextColor: '#ffffff', percentInside: true
-    });
+  if (colServ) {
+    try {
+      const OPEN_TERMS_SERV = ['abierto', 'open', 'pendiente', 'en progreso', 'en curso', 'asignado', 'reabierto'];
+      
+      // Si tenemos colEstado, filtrar solo abiertos; si no, mostrar todos
+      let datosParaServicio = rawData;
+      if (colEstado) {
+        datosParaServicio = rawData.filter(function (r) {
+          const s = norm(String(r[colEstado] || ''));
+          return OPEN_TERMS_SERV.some(function (t) { return s.indexOf(norm(t)) >= 0; });
+        });
+      }
+      
+      const counts = countBy(datosParaServicio, colServ).map(function (d) { return { label: cleanText(d.label), value: Math.round(d.value) }; });
+      const labels = counts.map(function (d) { return d.label; });
+      const valores = counts.map(function (d) { return d.value; });
+      const totalServ = valores.reduce(function (a, b) { return a + (Number(b) || 0); }, 0);
+      const percServicios = valores.map(function (v) { return totalServ ? (Number(v) / totalServ) * 100 : 0; });
+      const labelGrafica = colEstado ? 'Casos Abiertos' : 'Casos';
+      buildMultiBar('chartServicio', labels, [
+        { label: labelGrafica, data: valores, backgroundColor: '#4cc9f0', borderColor: '#3182ce' }
+      ], {
+        stacked: false, showEachBarPercentLabels: true,
+        percentsByDataset: { 0: percServicios },
+        percentTextColor: '#ffffff', percentInside: true
+      });
+    } catch (err) {
+      console.error('Error en chartServicio:', err);
+      showPlaceholder('chartServicio');
+    }
   } else { showPlaceholder('chartServicio'); }
   // Proveedor 
   const FIXED_PROV_COL = 'Proveedor a escalar';
