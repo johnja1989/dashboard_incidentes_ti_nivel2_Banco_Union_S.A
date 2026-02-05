@@ -285,6 +285,154 @@
       height: 100% !important;
     }
   }
+
+  /* === ESTILOS GITHUB SYNC === */
+  .github-config-panel {
+    background: linear-gradient(135deg, #e6e6fa 0%, #f0e6ff 100%);
+    border: 2px solid #9370db;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .github-config-panel h2 {
+    font-size: 20px;
+    color: #333;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .github-config-panel h2::before {
+    content: "🔗";
+  }
+  .github-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #90ee90;
+    color: #2d5016;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .github-status::before {
+    content: "✓";
+  }
+  .github-form {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+  }
+  .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: "Courier New", monospace;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: #9370db;
+    box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.1);
+  }
+  .form-group input[type="password"] {
+    letter-spacing: 3px;
+  }
+  .github-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .github-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .github-btn-primary {
+    background: #5b9bd5;
+    color: white;
+  }
+  .github-btn-primary:hover {
+    background: #4a8ac4;
+    transform: translateY(-2px);
+  }
+  .github-info {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #666;
+  }
+  .github-info-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 5px 0;
+  }
+  .github-info-item::before {
+    content: "💡";
+  }
+  .info-highlight {
+    color: #9370db;
+    font-weight: 600;
+  }
+  .auto-load-indicator {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #4caf50;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+  }
+  .auto-load-indicator.show {
+    display: flex;
+  }
+  .loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (max-width: 1024px) {
+    .github-form {
+      grid-template-columns: 1fr;
+    }
+  }
+
 </style>
 
 <body>
@@ -294,7 +442,7 @@
     </a>
     <h1>📊 Dashboard Backlog Incidentes TI - Gestión de Incidentes Nivel 2</h1>
     <div class="actions">
-      <label for="csvFile" class="button">📂 Cargar CSV</label>
+      <label for="csvFile" class="button">📂 Cargar CSV Local</label>
       <input id="csvFile" type="file" accept=".csv" style="display:none" />
       <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
       <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
@@ -303,12 +451,60 @@
     </div>
   </header>
 
+  <!-- Indicador de carga automática -->
+  <div id="autoLoadIndicator" class="auto-load-indicator">
+    <div class="loading-spinner"></div>
+    <span id="autoLoadMessage">Cargando datos desde GitHub...</span>
+  </div>
+
+  <!-- Panel de Configuración GitHub -->
+  <div class="github-config-panel">
+    <h2>
+      Sincronización Multi-Dispositivo con GitHub
+      <span class="github-status" id="githubStatus" style="display:none;"></span>
+    </h2>
+    <div class="github-form">
+      <div class="form-group">
+        <label for="githubUser">Usuario de GitHub:</label>
+        <input type="text" id="githubUser" placeholder="johnja1989" value="johnja1989">
+      </div>
+      <div class="form-group">
+        <label for="githubRepo">Repositorio:</label>
+        <input type="text" id="githubRepo" placeholder="Repositorio" value="dashboard_incidentes_ti_nivel2_Banco_Union_S.A">
+      </div>
+      <div class="form-group">
+        <label for="githubBranch">Rama (branch):</label>
+        <input type="text" id="githubBranch" placeholder="main" value="main">
+      </div>
+      <div class="form-group">
+        <label for="githubToken">Token Personal (PAT):</label>
+        <input type="password" id="githubToken" placeholder="••••••••••••••••••••••••••••••••">
+      </div>
+      <div class="github-actions">
+        <button class="github-btn github-btn-primary" id="btnTestConnection">🔍 Probar Conexión</button>
+        <button class="github-btn github-btn-primary" id="btnSaveConfig">💾 Guardar Configuración</button>
+      </div>
+      <div class="github-info">
+        <div class="github-info-item"><strong>Admin:</strong> Solo el administrador configura token.</div>
+        <div class="github-info-item">Todos los usuarios leerán datos desde GitHub automáticamente.</div>
+        <div class="github-info-item">1) Crea un <span class="info-highlight">Personal Access Token</span> con permisos <span class="info-highlight">repo</span></div>
+        <div class="github-info-item">2) Completa usuario/repo/branch/token</div>
+        <div class="github-info-item">3) Guarda configuración</div>
+        <div class="github-info-item">4) Carga CSV y se guardará en GitHub</div>
+        <div class="github-info-item">5) Los usuarios se actualizan automáticamente</div>
+      </div>
+    </div>
+  </div>
+
+
   <!-- Banner de estado -->
   <div class="status-banner">
     <span>📄 Archivo:</span>
     <span id="bannerFile" class="pill">—</span>
     <span>⏰ Guardado:</span>
     <span id="bannerSaved" class="pill">—</span>
+    <span>🔗 Fuente:</span>
+    <span id="bannerSource" class="pill">Local</span>
   </div>
 
   <main class="page">
@@ -388,11 +584,11 @@
   </main>
 
   <footer class="footer">
-    Creado por: John Jairo Vargas González - Ingeniero de Soluciones TI - john.vargas@bancounion.com<br />
+    Creado por: John Jairo Vargas González - Ingeniero de Soluciones TI - <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9df7f2f5f3b3ebfceffafceeddfffcf3fef2e8f3f4f2f3b3fef2f0">[email&#160;protected]</a><br />
     <span class="muted">"Transformando ideas en soluciones tecnológicas"</span>
   </footer>
 
-  <script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     /** 
  * Dashboard Incidentes TI — Banco Unión
  * - CSV -> Visualizaciones (Chart.js + DataLabels)
@@ -3617,7 +3813,155 @@ ${JSON.stringify(payloadKPI, null, 2)}
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
-      </style>
+      
+  /* === ESTILOS GITHUB SYNC === */
+  .github-config-panel {
+    background: linear-gradient(135deg, #e6e6fa 0%, #f0e6ff 100%);
+    border: 2px solid #9370db;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .github-config-panel h2 {
+    font-size: 20px;
+    color: #333;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .github-config-panel h2::before {
+    content: "🔗";
+  }
+  .github-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #90ee90;
+    color: #2d5016;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .github-status::before {
+    content: "✓";
+  }
+  .github-form {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+  }
+  .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: "Courier New", monospace;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: #9370db;
+    box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.1);
+  }
+  .form-group input[type="password"] {
+    letter-spacing: 3px;
+  }
+  .github-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .github-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .github-btn-primary {
+    background: #5b9bd5;
+    color: white;
+  }
+  .github-btn-primary:hover {
+    background: #4a8ac4;
+    transform: translateY(-2px);
+  }
+  .github-info {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #666;
+  }
+  .github-info-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 5px 0;
+  }
+  .github-info-item::before {
+    content: "💡";
+  }
+  .info-highlight {
+    color: #9370db;
+    font-weight: 600;
+  }
+  .auto-load-indicator {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #4caf50;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+  }
+  .auto-load-indicator.show {
+    display: flex;
+  }
+  .loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (max-width: 1024px) {
+    .github-form {
+      grid-template-columns: 1fr;
+    }
+  }
+
+</style>
     `;
         document.body.appendChild(overlay);
       }
@@ -3945,13 +4289,217 @@ ${JSON.stringify(payloadKPI, null, 2)}
         (rowsProv.slice().sort((a, b) => (b.abiertos + b.cerrados) - (a.abiertos + a.cerrados))[0]?.abiertos + rowsProv.slice().sort((a, b) => (b.abiertos + b.cerrados) - (a.abiertos + a.cerrados))[0]?.cerrados) || 0]);
       data.push(['Proveedor con más casos cerrados:', rowsProv.slice().sort((a, b) => b.cerrados - a.cerrados)[0]?.label || 'N/A',
         (rowsProv.slice().sort((a, b) => b.cerrados - a.cerrados)[0]?.cerrados) || 0]);
-      data.push(['']);
+      data.pu
+      data.push(["Proveedor con menor SLA:", rowsProv.slice().sort((a, b) => ((a.cerrados / (a.abiertos + a.cerrados)) - (b.cerrados / (b.abiertos + b.cerrados))))[0]?.label || "N/A",
+        rowsProv.slice().sort((a, b) => ((a.cerrados / (a.abiertos + a.cerrados)) - (b.cerrados / (b.abiertos + b.cerrados))))[0] ? 
+        `${((rowsProv.slice().sort((a, b) => ((a.cerrados / (a.abiertos + a.cerrados)) - (b.cerrados / (b.abiertos + b.cerrados))))[0].cerrados / 
+        (rowsProv.slice().sort((a, b) => ((a.cerrados / (a.abiertos + a.cerrados)) - (b.cerrados / (b.abiertos + b.cerrados))))[0].abiertos + 
+        rowsProv.slice().sort((a, b) => ((a.cerrados / (a.abiertos + a.cerrados)) - (b.cerrados / (b.abiertos + b.cerrados))))[0].cerrados)) * 100).toFixed(1)}%` : "0%"]);
+      data.push([""]);
 
       const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!cols'] = [{ wch: 35 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
+      ws["!cols"] = [{ wch: 35 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 20 }];
       return ws;
     }
-  </script>
-</body>
 
-</html>
+    // ================== Exponer funciones necesarias ==================
+    
+    // ==========================================
+    // CONFIGURACIÓN Y FUNCIONES DE GITHUB
+    // ==========================================
+    
+    const GITHUB_CONFIG_KEY = 'github_config_dashboard_v2';
+    const CSV_FILENAME = 'EST_VPT_BackLog_Incidentes_BU_V001_20250812(Backlog Incidentes TI).csv';
+    
+    function loadGithubConfig() {
+      const saved = localStorage.getItem(GITHUB_CONFIG_KEY);
+      if (saved) {
+        try {
+          const config = JSON.parse(saved);
+          if(document.getElementById('githubUser')) document.getElementById('githubUser').value = config.user || '';
+          if(document.getElementById('githubRepo')) document.getElementById('githubRepo').value = config.repo || '';
+          if(document.getElementById('githubBranch')) document.getElementById('githubBranch').value = config.branch || 'main';
+          if(document.getElementById('githubToken')) document.getElementById('githubToken').value = config.token || '';
+          
+          if (config.user && config.repo) {
+            const statusEl = document.getElementById('githubStatus');
+            if(statusEl) {
+              statusEl.textContent = `Admin (${config.user}/${config.repo})`;
+              statusEl.style.display = 'inline-flex';
+            }
+          }
+          return config;
+        } catch (e) {
+          console.error('Error cargando configuración:', e);
+        }
+      }
+      return null;
+    }
+    
+    function saveGithubConfig() {
+      const config = {
+        user: document.getElementById('githubUser').value.trim(),
+        repo: document.getElementById('githubRepo').value.trim(),
+        branch: document.getElementById('githubBranch').value.trim() || 'main',
+        token: document.getElementById('githubToken').value.trim()
+      };
+      
+      if (!config.user || !config.repo) {
+        alert('Por favor completa Usuario y Repositorio');
+        return false;
+      }
+      
+      localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(config));
+      
+      const statusEl = document.getElementById('githubStatus');
+      if(statusEl) {
+        statusEl.textContent = `Admin (${config.user}/${config.repo})`;
+        statusEl.style.display = 'inline-flex';
+      }
+      
+      alert('✅ Configuración guardada correctamente');
+      return true;
+    }
+    
+    async function testGithubConnection() {
+      const config = {
+        user: document.getElementById('githubUser').value.trim(),
+        repo: document.getElementById('githubRepo').value.trim(),
+        token: document.getElementById('githubToken').value.trim()
+      };
+      
+      if (!config.user || !config.repo) {
+        alert('Por favor completa Usuario y Repositorio');
+        return;
+      }
+      
+      showAutoLoadIndicator('Probando conexión con GitHub...');
+      
+      try {
+        const url = `https://api.github.com/repos/${config.user}/${config.repo}`;
+        const headers = {};
+        if (config.token) headers['Authorization'] = `token ${config.token}`;
+        
+        const response = await fetch(url, { headers });
+        
+        if (response.ok) {
+          const data = await response.json();
+          hideAutoLoadIndicator();
+          alert(`✅ Conexión exitosa!\n\nRepositorio: ${data.full_name}\nRama: ${data.default_branch}\nVisibilidad: ${data.private ? 'Privado' : 'Público'}`);
+        } else {
+          hideAutoLoadIndicator();
+          alert(`❌ Error (${response.status})\n\nVerifica:\n- Usuario y repositorio correctos\n- Token tiene permisos "repo"`);
+        }
+      } catch (error) {
+        hideAutoLoadIndicator();
+        alert(`❌ Error: ${error.message}`);
+      }
+    }
+    
+    async function loadCSVFromGithub() {
+      const config = loadGithubConfig();
+      
+      if (!config || !config.user || !config.repo) {
+        console.log('No hay configuración de GitHub');
+        return null;
+      }
+      
+      showAutoLoadIndicator('Cargando datos desde GitHub...');
+      
+      try {
+        const url = `https://raw.githubusercontent.com/${config.user}/${config.repo}/${config.branch}/${CSV_FILENAME}`;
+        console.log('Cargando desde:', url);
+        
+        const headers = {};
+        if (config.token) headers['Authorization'] = `token ${config.token}`;
+        
+        const response = await fetch(url, { headers, cache: 'no-cache' });
+        
+        if (response.ok) {
+          const csvText = await response.text();
+          hideAutoLoadIndicator();
+          
+          const bannerSource = document.getElementById('bannerSource');
+          if(bannerSource) {
+            bannerSource.textContent = 'GitHub';
+            bannerSource.style.background = '#4caf50';
+          }
+          
+          console.log('✅ CSV cargado desde GitHub');
+          return csvText;
+        } else {
+          hideAutoLoadIndicator();
+          console.error('Error cargando CSV:', response.status);
+          if (response.status === 404) {
+            alert(`⚠️ Archivo no encontrado\n\nAsegúrate de que "${CSV_FILENAME}" esté en el repositorio`);
+          }
+          return null;
+        }
+      } catch (error) {
+        hideAutoLoadIndicator();
+        console.error('Error:', error);
+        return null;
+      }
+    }
+    
+    function showAutoLoadIndicator(message) {
+      const indicator = document.getElementById('autoLoadIndicator');
+      const messageEl = document.getElementById('autoLoadMessage');
+      if(indicator && messageEl) {
+        messageEl.textContent = message;
+        indicator.classList.add('show');
+      }
+    }
+    
+    function hideAutoLoadIndicator() {
+      const indicator = document.getElementById('autoLoadIndicator');
+      if(indicator) {
+        setTimeout(() => indicator.classList.remove('show'), 1000);
+      }
+    }
+    
+    // Inicialización
+    setTimeout(function() {
+      const btnTest = document.getElementById('btnTestConnection');
+      const btnSave = document.getElementById('btnSaveConfig');
+      
+      if(btnTest) btnTest.addEventListener('click', testGithubConnection);
+      if(btnSave) btnSave.addEventListener('click', saveGithubConfig);
+      
+      loadGithubConfig();
+      
+      // Intentar cargar CSV desde GitHub automáticamente
+      setTimeout(async function() {
+        const csvText = await loadCSVFromGithub();
+        if (csvText && typeof handleFile === 'function') {
+          const fakeEvent = {
+            target: {
+              files: [new Blob([csvText], { type: 'text/csv' })]
+            }
+          };
+          fakeEvent.target.files[0].name = CSV_FILENAME;
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            if(window.Papa && window.Papa.parse) {
+              const result = window.Papa.parse(e.target.result, {
+                header: true,
+                skipEmptyLines: true,
+                encoding: 'UTF-8'
+              });
+              if(result && result.data) {
+                handleParsedData(result.data, CSV_FILENAME);
+              }
+            }
+          };
+          reader.readAsText(fakeEvent.target.files[0], 'UTF-8');
+        }
+      }, 500);
+    }, 100);
+    
+
+    // Exponer función
+    window.handleCSVData = handleFile;
+  </script>
+
+  </body>
+  </html>
