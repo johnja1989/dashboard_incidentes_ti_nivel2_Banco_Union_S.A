@@ -414,16 +414,29 @@
     right: 20px;
     background: #4caf50;
     color: white;
-    padding: 12px 20px;
+    padding: 15px 25px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
     align-items: center;
     gap: 10px;
     z-index: 1000;
+    font-weight: 600;
+    font-size: 14px;
+    animation: slideInRight 0.3s ease;
   }
   .auto-load-indicator.show {
     display: flex;
+  }
+  @keyframes slideInRight {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
   .loading-spinner {
     width: 16px;
@@ -451,9 +464,9 @@
     </a>
     <h1>📊 Dashboard Backlog Incidentes TI - Gestión de Incidentes Nivel 2</h1>
     <div class="actions">
-      <label for="csvFile" class="button">📂 Cargar CSV Local</label>
+      <label for="csvFile" class="button">📂 Cargar y Sincronizar CSV</label>
       <input id="csvFile" type="file" accept=".csv" style="display:none" />
-      <button id="btnUploadToGithub" class="button" style="display:none; background: #28a745;">☁️ Subir a GitHub</button>
+      <button id="btnUploadToGithub" class="button" style="display:none; background: #28a745;">☁️ Sincronizar Ahora</button>
       <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
       <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
       <button id="btnClear" class="button secondary">🧹 Limpiar caché</button>
@@ -503,8 +516,9 @@
         <div class="github-info-item">1) Crea un <span class="info-highlight">Personal Access Token</span> con permisos <span class="info-highlight">repo</span></div>
         <div class="github-info-item">2) Completa usuario/repo/branch/token</div>
         <div class="github-info-item">3) Guarda configuración</div>
-        <div class="github-info-item">4) Carga CSV localmente y confírma subirlo a GitHub</div>
-        <div class="github-info-item">5) Los usuarios se actualizan automáticamente</div>
+        <div class="github-info-item">4) Carga CSV y se sincroniza <strong>automáticamente</strong> con GitHub</div>
+        <div class="github-info-item">5) ✨ La sincronización es instantánea y automática</div>
+        <div class="github-info-item">6) Los usuarios solo necesitan refrescar (F5) para ver los nuevos datos</div>
       </div>
     </div>
   </div>
@@ -3978,16 +3992,29 @@ ${JSON.stringify(payloadKPI, null, 2)}
     right: 20px;
     background: #4caf50;
     color: white;
-    padding: 12px 20px;
+    padding: 15px 25px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
     align-items: center;
     gap: 10px;
     z-index: 1000;
+    font-weight: 600;
+    font-size: 14px;
+    animation: slideInRight 0.3s ease;
   }
   .auto-load-indicator.show {
     display: flex;
+  }
+  @keyframes slideInRight {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
   .loading-spinner {
     width: 16px;
@@ -4531,7 +4558,21 @@ ${userUrl}
             bannerSource.style.background = '#4caf50';
           }
           
-          alert('✅ Archivo subido a GitHub exitosamente!\n\n👥 Todos los usuarios verán estos datos actualizados.');
+          // Mostrar notificación de éxito
+          showAutoLoadIndicator('✅ Sincronizado con GitHub - Visible para todos', true);
+          setTimeout(() => {
+            hideAutoLoadIndicator();
+          }, 4000);
+          
+          console.log('✅ Archivo CSV subido automáticamente a GitHub');
+          
+          // Actualizar el texto del banner
+          setTimeout(() => {
+            const lastUpdate = document.getElementById('lastUpdate');
+            if (lastUpdate) {
+              lastUpdate.textContent = `Última sincronización: ${new Date().toLocaleString('es-ES')}`;
+            }
+          }, 1000);
           console.log('✅ CSV subido a GitHub');
           return true;
         } else {
@@ -4598,12 +4639,19 @@ ${userUrl}
       }
     }
     
-    function showAutoLoadIndicator(message) {
+    function showAutoLoadIndicator(message, isSuccess = false) {
       const indicator = document.getElementById('autoLoadIndicator');
       const messageEl = document.getElementById('autoLoadMessage');
       if(indicator && messageEl) {
         messageEl.textContent = message;
         indicator.classList.add('show');
+        
+        // Cambiar color si es mensaje de éxito
+        if (isSuccess || message.includes('✅')) {
+          indicator.style.background = '#28a745';
+        } else {
+          indicator.style.background = '#4caf50';
+        }
       }
     }
     
@@ -4662,14 +4710,13 @@ ${userUrl}
         btnUploadToGithub.style.display = 'inline-block';
         btnUploadToGithub.addEventListener('click', async function() {
           if (!window.currentCSVContent) {
-            alert('⚠️ Primero carga un archivo CSV');
+            showAutoLoadIndicator('⚠️ Primero carga un archivo CSV');
+            setTimeout(() => hideAutoLoadIndicator(), 2000);
             return;
           }
           
-          const shouldUpload = confirm('📤 ¿Subir el archivo actual a GitHub?\n\nTodos los usuarios verán estos datos.');
-          if (shouldUpload) {
-            await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
-          }
+          showAutoLoadIndicator('☁️ Sincronizando con GitHub...');
+          await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
         });
       }
       
@@ -4698,16 +4745,20 @@ ${userUrl}
                 // Procesar datos
                 handleParsedData(result.data, CSV_FILENAME);
                 
-                // Si es admin, ofrecer subir a GitHub
+                // Mostrar que se está procesando
+                if (isAdminMode()) {
+                  showAutoLoadIndicator('📊 Procesando archivo...');
+                  setTimeout(() => {
+                    hideAutoLoadIndicator();
+                  }, 1500);
+                }
+                
+                // Si es admin, subir automáticamente a GitHub
                 if (isAdminMode()) {
                   setTimeout(async function() {
-                    const shouldUpload = confirm('📤 ¿Deseas subir este archivo a GitHub para que todos los usuarios lo vean?\n\n✅ SÍ: Todos verán estos datos\n❌ NO: Solo tú lo verás localmente');
-                    
-                    if (shouldUpload) {
-                      const uploaded = await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
-                      if (!uploaded) {
-                        console.log('No se pudo subir a GitHub, los datos solo están disponibles localmente');
-                      }
+                    const uploaded = await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
+                    if (!uploaded) {
+                      console.log('No se pudo subir a GitHub, los datos solo están disponibles localmente');
                     }
                   }, 500);
                 }
