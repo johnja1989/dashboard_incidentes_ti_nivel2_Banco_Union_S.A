@@ -453,6 +453,7 @@
     <div class="actions">
       <label for="csvFile" class="button">📂 Cargar CSV Local</label>
       <input id="csvFile" type="file" accept=".csv" style="display:none" />
+      <button id="btnUploadToGithub" class="button" style="display:none; background: #28a745;">☁️ Subir a GitHub</button>
       <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
       <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
       <button id="btnClear" class="button secondary">🧹 Limpiar caché</button>
@@ -502,7 +503,7 @@
         <div class="github-info-item">1) Crea un <span class="info-highlight">Personal Access Token</span> con permisos <span class="info-highlight">repo</span></div>
         <div class="github-info-item">2) Completa usuario/repo/branch/token</div>
         <div class="github-info-item">3) Guarda configuración</div>
-        <div class="github-info-item">4) Carga CSV y se guardará en GitHub</div>
+        <div class="github-info-item">4) Carga CSV localmente y confírma subirlo a GitHub</div>
         <div class="github-info-item">5) Los usuarios se actualizan automáticamente</div>
       </div>
     </div>
@@ -4456,6 +4457,101 @@ ${userUrl}
       }
     }
     
+
+    // ==========================================
+    // SUBIR ARCHIVO CSV A GITHUB AUTOMÁTICAMENTE
+    // ==========================================
+    
+    async function uploadCSVToGithub(csvContent, filename) {
+      const config = loadGithubConfig();
+      
+      if (!config || !config.token) {
+        console.error('No hay token de GitHub configurado');
+        alert('⚠️ No se puede subir a GitHub. Configura el token primero.');
+        return false;
+      }
+      
+      showAutoLoadIndicator('Subiendo archivo a GitHub...');
+      
+      try {
+        // Primero verificar si el archivo existe
+        const checkUrl = `https://api.github.com/repos/${config.user}/${config.repo}/contents/${filename}`;
+        const checkHeaders = {
+          'Authorization': `token ${config.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        };
+        
+        let sha = null;
+        try {
+          const checkResponse = await fetch(checkUrl, { headers: checkHeaders });
+          if (checkResponse.ok) {
+            const data = await checkResponse.json();
+            sha = data.sha;
+            console.log('Archivo existente encontrado, se actualizará');
+          }
+        } catch (e) {
+          console.log('Archivo no existe, se creará nuevo');
+        }
+        
+        // Convertir contenido a base64
+        const base64Content = btoa(unescape(encodeURIComponent(csvContent)));
+        
+        // Preparar datos para GitHub API
+        const payload = {
+          message: `Actualización automática de datos - ${new Date().toLocaleString('es-ES')}`,
+          content: base64Content,
+          branch: config.branch || 'main'
+        };
+        
+        if (sha) {
+          payload.sha = sha; // Necesario para actualizar archivo existente
+        }
+        
+        // Subir archivo
+        const uploadUrl = `https://api.github.com/repos/${config.user}/${config.repo}/contents/${filename}`;
+        const uploadHeaders = {
+          'Authorization': `token ${config.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        };
+        
+        const response = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: uploadHeaders,
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          hideAutoLoadIndicator();
+          
+          // Actualizar banner
+          const bannerSource = document.getElementById('bannerSource');
+          if(bannerSource) {
+            bannerSource.textContent = 'GitHub (Sincronizado)';
+            bannerSource.style.background = '#4caf50';
+          }
+          
+          alert('✅ Archivo subido a GitHub exitosamente!\n\n👥 Todos los usuarios verán estos datos actualizados.');
+          console.log('✅ CSV subido a GitHub');
+          return true;
+        } else {
+          const errorData = await response.json();
+          hideAutoLoadIndicator();
+          console.error('Error subiendo a GitHub:', errorData);
+          alert(`❌ Error al subir a GitHub (${response.status})\n\n${errorData.message || 'Error desconocido'}\n\nVerifica que el token tenga permisos de escritura.`);
+          return false;
+        }
+      } catch (error) {
+        hideAutoLoadIndicator();
+        console.error('Error:', error);
+        alert(`❌ Error al subir a GitHub: ${error.message}`);
+        return false;
+      }
+    }
+    
+    // Variable global para almacenar el contenido CSV actual
+    window.currentCSVContent = null;
+    
     async function loadCSVFromGithub() {
       const config = loadGithubConfig();
       
@@ -4559,6 +4655,23 @@ ${userUrl}
       if(btnCopyUrls) btnCopyUrls.addEventListener('click', copyUrlsToClipboard);
       
       loadGithubConfig();
+
+      // Mostrar botón de subir a GitHub solo para admin si hay datos cargados
+      const btnUploadToGithub = document.getElementById('btnUploadToGithub');
+      if (btnUploadToGithub && isAdminMode()) {
+        btnUploadToGithub.style.display = 'inline-block';
+        btnUploadToGithub.addEventListener('click', async function() {
+          if (!window.currentCSVContent) {
+            alert('⚠️ Primero carga un archivo CSV');
+            return;
+          }
+          
+          const shouldUpload = confirm('📤 ¿Subir el archivo actual a GitHub?\n\nTodos los usuarios verán estos datos.');
+          if (shouldUpload) {
+            await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
+          }
+        });
+      }
       
       // Intentar cargar CSV desde GitHub automáticamente
       setTimeout(async function() {
@@ -4579,7 +4692,25 @@ ${userUrl}
                 encoding: 'UTF-8'
               });
               if(result && result.data) {
+                // Guardar contenido CSV para subir a GitHub
+                window.currentCSVContent = e.target.result;
+                
+                // Procesar datos
                 handleParsedData(result.data, CSV_FILENAME);
+                
+                // Si es admin, ofrecer subir a GitHub
+                if (isAdminMode()) {
+                  setTimeout(async function() {
+                    const shouldUpload = confirm('📤 ¿Deseas subir este archivo a GitHub para que todos los usuarios lo vean?\n\n✅ SÍ: Todos verán estos datos\n❌ NO: Solo tú lo verás localmente');
+                    
+                    if (shouldUpload) {
+                      const uploaded = await uploadCSVToGithub(window.currentCSVContent, CSV_FILENAME);
+                      if (!uploaded) {
+                        console.log('No se pudo subir a GitHub, los datos solo están disponibles localmente');
+                      }
+                    }
+                  }, 500);
+                }
               }
             }
           };
