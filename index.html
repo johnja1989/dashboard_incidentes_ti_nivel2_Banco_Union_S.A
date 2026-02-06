@@ -300,6 +300,8 @@
       <input id="csvFile" type="file" accept=".csv" style="display:none" />
       <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
       <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
+      <button id="btnPublish" class="button" style="background:#e76f51;" title="Sube los datos actuales al repo de GitHub para que todos los usuarios vean el dashboard actualizado">🚀 Publicar a GitHub</button>
+      <button id="btnGithubConfig" class="button secondary" title="Configurar token de GitHub para publicar datos">⚙️ Config GitHub</button>
       <button id="btnClear" class="button secondary">🧹 Limpiar caché</button>
       <span id="lastUpdate" class="muted">Última actualización: —</span>
     </div>
@@ -3955,95 +3957,336 @@ ${JSON.stringify(payloadKPI, null, 2)}
 
 
 <script>
-// CONFIGURACIÓN GITHUB
-const GITHUB_USER = 'johnja1989';
-const GITHUB_REPO = 'dashboard_incidentes_ti_nivel2_Banco_Union_S.A';
-const GITHUB_BRANCH = 'main';
-const ZIP_FILE = 'datos.zip';  // ← Nombre de tu archivo ZIP
+/* ===================== SISTEMA DE SINCRONIZACIÓN GITHUB ===================== */
+/* Permite que un admin suba CSV → GitHub y TODOS los usuarios vean los datos   */
+/* ============================================================================ */
 
-// CARGAR ZIP DESDE GITHUB AUTOMÁTICAMENTE
-async function loadFromGithub() {
+// Configuración pública del repositorio
+const GH_CFG = {
+  user: 'johnja1989',
+  repo: 'dashboard_incidentes_ti_nivel2_Banco_Union_S.A',
+  branch: 'main',
+  zipFile: 'datos.zip'
+};
+
+const GH_PAT_KEY = 'dashboard_github_pat_v1';
+const GH_LAST_SHA_KEY = 'dashboard_github_last_sha_v1';
+
+// ==================== CARGAR DATOS DESDE GITHUB ====================
+async function loadFromGithub(silent) {
+  silent = !!silent;
   try {
-    console.log('🔄 Cargando ZIP desde GitHub...');
-    
-    const url = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/raw/${GITHUB_BRANCH}/${ZIP_FILE}`;
-    const response = await fetch(url, { cache: 'no-cache' });
-    
-    if (!response.ok) {
-      throw new Error('Archivo ZIP no encontrado en GitHub');
+    if (!silent) console.log('🔄 Cargando datos desde GitHub...');
+
+    // Usar API de GitHub para obtener el SHA y detectar cambios
+    const apiUrl = `https://api.github.com/repos/${GH_CFG.user}/${GH_CFG.repo}/contents/${GH_CFG.zipFile}?ref=${GH_CFG.branch}`;
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    const pat = localStorage.getItem(GH_PAT_KEY);
+    if (pat) headers['Authorization'] = 'token ' + pat;
+
+    // Primero verificar si cambió el SHA (para no recargar innecesariamente)
+    let metaResp;
+    try {
+      metaResp = await fetch(apiUrl, { headers, cache: 'no-store' });
+    } catch (e) {
+      // Si falla la API (rate limit), intentar descarga directa
+      metaResp = null;
     }
-    
+
+    let downloadUrl;
+    let currentSha = null;
+
+    if (metaResp && metaResp.ok) {
+      const meta = await metaResp.json();
+      currentSha = meta.sha;
+      downloadUrl = meta.download_url;
+
+      // Si el SHA no cambió, no recargar
+      const lastSha = localStorage.getItem(GH_LAST_SHA_KEY);
+      if (silent && lastSha && lastSha === currentSha && rawData.length > 0) {
+        console.log('✅ Datos sin cambios (SHA igual). Omitiendo recarga.');
+        return;
+      }
+    } else {
+      // Fallback: descarga directa sin verificar SHA
+      downloadUrl = `https://raw.githubusercontent.com/${GH_CFG.user}/${GH_CFG.repo}/${GH_CFG.branch}/${GH_CFG.zipFile}`;
+    }
+
+    const response = await fetch(downloadUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.warn('📭 Archivo ZIP no encontrado en GitHub. Usa "Publicar a GitHub" para subir datos.');
+        return;
+      }
+      throw new Error('Error HTTP ' + response.status);
+    }
+
     const zipBlob = await response.blob();
     const zip = await JSZip.loadAsync(zipBlob);
-    
+
     // Buscar el CSV dentro del ZIP
     let csvContent = null;
+    let csvFileName = null;
     const files = Object.keys(zip.files);
-    
+
     for (const filename of files) {
-      if (filename.endsWith('.csv')) {
-        csvContent = await zip.file(filename).async('text');
-        console.log('✅ CSV encontrado:', filename);
+      if (filename.toLowerCase().endsWith('.csv') && !zip.files[filename].dir) {
+        // Intentar decodificar como windows-1252 primero, luego UTF-8
+        const uint8 = await zip.file(filename).async('uint8array');
+        try {
+          csvContent = new TextDecoder('windows-1252').decode(uint8);
+        } catch (e) {
+          csvContent = new TextDecoder('utf-8').decode(uint8);
+        }
+        csvFileName = filename;
         break;
       }
     }
-    
-    if (!csvContent) {
-      throw new Error('No se encontró archivo CSV dentro del ZIP');
-    }
-    
+
+    if (!csvContent) throw new Error('No se encontró archivo CSV dentro del ZIP');
+
     // Parsear CSV
-    const result = Papa.parse(csvContent, {
+    Papa.parse(csvContent, {
       header: true,
       skipEmptyLines: true,
-      encoding: 'UTF-8'
-    });
-    
-    if (result && result.data) {
-      console.log('✅ Datos cargados:', result.data.length, 'registros');
-      
-      // Llamar función original del dashboard
-      if (typeof handleParsedData === 'function') {
-        handleParsedData(result.data, 'datos.csv');
+      complete: function (results) {
+        const data = (results.data || []).filter(function (row) {
+          return Object.values(row).some(function (val) {
+            return val !== null && val !== undefined && String(val).trim() !== '';
+          });
+        });
+        if (!data.length) {
+          console.warn('CSV de GitHub vacío o sin datos válidos.');
+          return;
+        }
+
+        // Actualizar estado global del dashboard
+        rawData = data;
+        window.__lastCsvName = csvFileName || 'datos.csv';
+        const headers = results.meta && results.meta.fields ? results.meta.fields : Object.keys(rawData[0] || {});
+        schema = inferSchema(headers, rawData);
+        renderAll();
+
+        const now = new Date();
+        const lastUpdate = document.getElementById('lastUpdate');
+        if (lastUpdate) lastUpdate.textContent = 'Última actualización: ' + now.toLocaleString('es-CO');
+        updateBanner(csvFileName || GH_CFG.zipFile, now);
+        saveState();
+
+        // Guardar SHA para evitar recargas innecesarias
+        if (currentSha) localStorage.setItem(GH_LAST_SHA_KEY, currentSha);
+
+        console.log('✅ Dashboard actualizado desde GitHub:', data.length, 'registros de', csvFileName);
+        if (!silent) showNotification('Datos cargados desde GitHub: ' + data.length + ' registros', 'success');
+      },
+      error: function (err) {
+        console.error('Error parseando CSV de GitHub:', err);
       }
-      
-      // Actualizar banner si existe
-      const now = new Date().toLocaleString('es-ES');
-      const bannerFile = document.getElementById('bannerFile');
-      const bannerSaved = document.getElementById('bannerSaved');
-      if (bannerFile) bannerFile.textContent = ZIP_FILE;
-      if (bannerSaved) bannerSaved.textContent = now;
-    }
-    
+    });
+
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    const tbody = document.querySelector('#tablaDatos tbody');
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="100" style="text-align:center; padding:40px; color:#ff6b6b;">
-            <strong>❌ Error al cargar datos</strong><br><br>
-            ${error.message}<br><br>
-            <strong>Verifica que el archivo exista en:</strong><br>
-            https://github.com/${GITHUB_USER}/${GITHUB_REPO}/blob/${GITHUB_BRANCH}/${ZIP_FILE}
-          </td>
-        </tr>
-      `;
+    console.error('❌ Error cargando desde GitHub:', error.message);
+    if (!silent) {
+      const tbody = document.querySelector('#tablaDatos tbody');
+      if (tbody && !rawData.length) {
+        tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding:40px; color:#ff6b6b;">' +
+          '<strong>No se pudieron cargar datos desde GitHub</strong><br><br>' +
+          error.message + '<br><br>' +
+          'Usa el botón "Cargar CSV" para subir datos manualmente, o "Publicar a GitHub" para compartir.</td></tr>';
+      }
     }
   }
 }
 
-// CARGAR AUTOMÁTICAMENTE AL INICIAR
+// ==================== PUBLICAR CSV A GITHUB ====================
+async function publishToGithub() {
+  const pat = localStorage.getItem(GH_PAT_KEY);
+  if (!pat) {
+    showGithubConfigDialog();
+    alert('Primero configura tu GitHub Personal Access Token (PAT) con permisos "repo" para poder publicar.');
+    return;
+  }
+
+  if (!rawData.length) {
+    alert('No hay datos cargados para publicar. Carga un CSV primero.');
+    return;
+  }
+
+  showLoadingIndicator('Publicando datos a GitHub...');
+
+  try {
+    // 1. Convertir rawData a CSV
+    const csvString = Papa.unparse(rawData);
+    const csvFileName = window.__lastCsvName || 'datos.csv';
+
+    // 2. Crear ZIP con el CSV
+    const zip = new JSZip();
+    zip.file(csvFileName, csvString);
+    const zipBlob = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+
+    // 3. Verificar si el archivo ya existe (para obtener el SHA)
+    const apiUrl = `https://api.github.com/repos/${GH_CFG.user}/${GH_CFG.repo}/contents/${GH_CFG.zipFile}`;
+    const authHeaders = {
+      'Authorization': 'token ' + pat,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    };
+
+    let existingSha = null;
+    try {
+      const checkResp = await fetch(apiUrl + '?ref=' + GH_CFG.branch, { headers: authHeaders });
+      if (checkResp.ok) {
+        const existing = await checkResp.json();
+        existingSha = existing.sha;
+      }
+    } catch (e) { /* archivo no existe aún, OK */ }
+
+    // 4. Subir/actualizar archivo en GitHub
+    const body = {
+      message: '📊 Dashboard actualizado - ' + new Date().toLocaleString('es-CO') + ' (' + rawData.length + ' registros)',
+      content: zipBlob,
+      branch: GH_CFG.branch
+    };
+    if (existingSha) body.sha = existingSha;
+
+    const uploadResp = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: JSON.stringify(body)
+    });
+
+    if (!uploadResp.ok) {
+      const errBody = await uploadResp.json().catch(() => ({}));
+      throw new Error('GitHub API error ' + uploadResp.status + ': ' + (errBody.message || 'Error desconocido'));
+    }
+
+    const result = await uploadResp.json();
+    // Actualizar SHA local
+    if (result.content && result.content.sha) {
+      localStorage.setItem(GH_LAST_SHA_KEY, result.content.sha);
+    }
+
+    hideLoadingIndicator();
+    showNotification('✅ Datos publicados exitosamente a GitHub. Todos los usuarios verán la actualización.', 'success');
+    console.log('✅ Archivo subido a GitHub:', GH_CFG.zipFile);
+
+  } catch (error) {
+    hideLoadingIndicator();
+    console.error('❌ Error publicando a GitHub:', error);
+    if (error.message.includes('401') || error.message.includes('403')) {
+      showNotification('Token inválido o sin permisos. Reconfigura en ⚙️ Config GitHub.', 'error');
+      showGithubConfigDialog();
+    } else {
+      showNotification('Error publicando: ' + error.message, 'error');
+    }
+  }
+}
+
+// ==================== DIÁLOGO CONFIGURACIÓN GITHUB PAT ====================
+function showGithubConfigDialog() {
+  // Remover diálogo existente si ya hay uno abierto
+  const existing = document.getElementById('ghConfigOverlay');
+  if (existing) existing.remove();
+
+  const currentPat = localStorage.getItem(GH_PAT_KEY) || '';
+  const maskedPat = currentPat ? currentPat.slice(0, 8) + '••••••••' + currentPat.slice(-4) : '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ghConfigOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(4px);';
+  overlay.innerHTML = `
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px 32px;max-width:520px;width:90%;color:#e5e7eb;font-family:system-ui,sans-serif;">
+      <h2 style="margin:0 0 8px;color:#4cc9f0;">⚙️ Configuración de GitHub</h2>
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:0.9rem;">
+        Para publicar datos al repositorio, necesitas un <strong>Personal Access Token (PAT)</strong> de GitHub
+        con permisos <code style="background:#334155;padding:2px 6px;border-radius:4px;">repo</code>.
+        El token se guarda <strong>solo en tu navegador</strong> (localStorage), no se comparte.<br><br>
+        <a href="https://github.com/settings/tokens/new?scopes=repo&description=Dashboard+Incidentes" 
+           target="_blank" style="color:#4cc9f0;text-decoration:underline;">📌 Crear token en GitHub →</a>
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;font-weight:600;">Repositorio:</label>
+        <input type="text" value="${GH_CFG.user}/${GH_CFG.repo}" disabled
+               style="width:100%;padding:8px 12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#9ca3af;font-size:0.9rem;box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;font-weight:600;">GitHub Personal Access Token:</label>
+        <input id="ghPatInput" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+               value="${currentPat}"
+               style="width:100%;padding:8px 12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#e5e7eb;font-size:0.9rem;box-sizing:border-box;" />
+        ${maskedPat ? '<p style="margin:4px 0 0;font-size:0.8rem;color:#6b7280;">Token actual: ' + maskedPat + '</p>' : ''}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button id="ghCfgCancel" style="padding:8px 16px;background:#334155;color:#e5e7eb;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>
+        ${currentPat ? '<button id="ghCfgRemove" style="padding:8px 16px;background:#e76f51;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Eliminar Token</button>' : ''}
+        <button id="ghCfgSave" style="padding:8px 16px;background:#4cc9f0;color:#0b1220;border:none;border-radius:8px;cursor:pointer;font-weight:600;">💾 Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Eventos
+  document.getElementById('ghCfgCancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  const removeBtn = document.getElementById('ghCfgRemove');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      localStorage.removeItem(GH_PAT_KEY);
+      showNotification('Token de GitHub eliminado.', 'success');
+      overlay.remove();
+    });
+  }
+
+  document.getElementById('ghCfgSave').addEventListener('click', async () => {
+    const newPat = document.getElementById('ghPatInput').value.trim();
+    if (!newPat) {
+      alert('Ingresa un token válido.');
+      return;
+    }
+    // Validar token con una petición de prueba
+    try {
+      const testResp = await fetch('https://api.github.com/user', {
+        headers: { 'Authorization': 'token ' + newPat, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (!testResp.ok) throw new Error('Token inválido');
+      const user = await testResp.json();
+      localStorage.setItem(GH_PAT_KEY, newPat);
+      showNotification('Token guardado. Autenticado como: ' + (user.login || 'OK'), 'success');
+      overlay.remove();
+    } catch (e) {
+      alert('Token inválido o sin permisos. Verifica e intenta de nuevo.\n\nError: ' + e.message);
+    }
+  });
+}
+
+// ==================== INICIALIZACIÓN Y AUTO-REFRESCO ====================
 window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(loadFromGithub, 1000);
+  // Botones de GitHub
+  const btnPublish = document.getElementById('btnPublish');
+  const btnGithubConfig = document.getElementById('btnGithubConfig');
+  if (btnPublish) btnPublish.addEventListener('click', publishToGithub);
+  if (btnGithubConfig) btnGithubConfig.addEventListener('click', showGithubConfigDialog);
+
+  // Cargar desde GitHub al iniciar (con retraso para que el dashboard cargue primero desde caché)
+  setTimeout(() => {
+    // Si no hay datos en caché, cargar desde GitHub
+    if (!rawData.length) {
+      loadFromGithub(false);
+    } else {
+      // Si hay caché, verificar en background si hay actualización
+      loadFromGithub(true);
+    }
+  }, 1500);
 });
 
-// RECARGAR CADA 5 MINUTOS
-setInterval(loadFromGithub, 5 * 60 * 1000);
+// Auto-refresco cada 3 minutos (silencioso - solo recarga si cambió el SHA)
+setInterval(() => loadFromGithub(true), 3 * 60 * 1000);
 
-console.log('✅ Sistema de carga automática desde GitHub inicializado');
-console.log('📦 Archivo:', ZIP_FILE);
-console.log('📍 Repo:', `${GITHUB_USER}/${GITHUB_REPO}`);
+console.log('✅ Sistema de sincronización GitHub inicializado');
+console.log('📦 Archivo:', GH_CFG.zipFile);
+console.log('📍 Repo:', GH_CFG.user + '/' + GH_CFG.repo);
+console.log('💡 Los usuarios recibirán actualizaciones automáticas cada 3 minutos.');
 </script>
 </body>
 </html>
