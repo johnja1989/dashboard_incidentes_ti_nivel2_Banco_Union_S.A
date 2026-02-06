@@ -24,6 +24,8 @@
 
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+
 <style>
   :root {
     /* Paleta y acentos */
@@ -285,98 +287,7 @@
       height: 100% !important;
     }
   }
-
-  /* Estilos para sincronización GitHub */
-  .github-config {
-    background: rgba(76, 201, 240, 0.05);
-    border: 2px solid var(--accent);
-    border-radius: 12px;
-    padding: 25px;
-    margin: 20px;
-    display: none;
-  }
-
-  .github-config h3 {
-    color: var(--text);
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.2em;
-  }
-
-  .config-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
-  }
-
-  .config-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .config-field label {
-    font-weight: 600;
-    color: var(--muted);
-    font-size: 0.9em;
-  }
-
-  .config-field input {
-    padding: 10px;
-    border: 2px solid #334155;
-    border-radius: 6px;
-    font-size: 0.9em;
-    transition: border-color 0.3s ease;
-    background: #1e293b;
-    color: var(--text);
-  }
-
-  .config-field input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .config-status {
-    display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.85em;
-    font-weight: 600;
-  }
-
-  .status-connected {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-  }
-
-  .status-disconnected {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-  }
-
-  .help-text {
-    font-size: 0.85em;
-    color: var(--muted);
-    margin-top: 15px;
-    line-height: 1.6;
-  }
-
-  .help-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .help-link:hover {
-    text-decoration: underline;
-  }
-
 </style>
-
-</head>
 
 <body>
   <header class="topbar">
@@ -385,8 +296,8 @@
     </a>
     <h1>📊 Dashboard Backlog Incidentes TI - Gestión de Incidentes Nivel 2</h1>
     <div class="actions">
-      <label for="csvFile" class="button">📂 Cargar CSV/ZIP</label>
-      <input id="csvFile" type="file" accept=".csv,.zip" style="display:none" />
+      <label for="csvFile" class="button">📂 Cargar CSV</label>
+      <input id="csvFile" type="file" accept=".csv" style="display:none" />
       <button id="btnPdfReport" class="button">📊 Reporte PDF Ejecutivo</button>
       <button id="btnExcelReport" class="button">📗 Exportar Excel</button>
       <button id="btnClear" class="button secondary">🧹 Limpiar caché</button>
@@ -400,46 +311,6 @@
     <span id="bannerFile" class="pill">—</span>
     <span>⏰ Guardado:</span>
     <span id="bannerSaved" class="pill">—</span>
-  </div>
-
-  <!-- Panel de configuración GitHub (solo visible en modo ?admin=1) -->
-  <div id="githubConfigPanel" class="github-config">
-    <h3>
-      🔗 Sincronización Multi-Dispositivo con GitHub
-      <span id="githubStatus" class="config-status status-disconnected">No configurado</span>
-    </h3>
-
-    <div class="config-grid">
-      <div class="config-field">
-        <label>Usuario de GitHub:</label>
-        <input type="text" id="githubUser" placeholder="tu-usuario">
-      </div>
-      <div class="config-field">
-        <label>Repositorio:</label>
-        <input type="text" id="githubRepo" placeholder="nombre-repositorio">
-      </div>
-      <div class="config-field">
-        <label>Rama (branch):</label>
-        <input type="text" id="githubBranch" value="main" placeholder="main o gh-pages">
-      </div>
-      <div class="config-field">
-        <label>Token Personal (PAT):</label>
-        <input type="password" id="githubToken" placeholder="ghp_...">
-      </div>
-    </div>
-
-    <button onclick="testGitHubConnection()" class="button" style="margin-right: 10px;">🔍 Probar Conexión</button>
-    <button onclick="saveGitHubConfig()" class="button">💾 Guardar Configuración</button>
-
-    <div class="help-text">
-      <strong>💡 Admin:</strong> Solo el administrador configura token.<br>
-      Todos los usuarios leerán datos desde GitHub automáticamente (sin token).<br><br>
-      1) Crea un <a href="https://github.com/settings/tokens/new" target="_blank" class="help-link">Personal Access Token</a> con permisos <strong>repo</strong><br>
-      2) Completa usuario/repo/branch/token<br>
-      3) Guarda configuración<br>
-      4) Carga CSV/ZIP y se guardará en GitHub<br>
-      5) Los usuarios se actualizan automáticamente
-    </div>
   </div>
 
   <main class="page">
@@ -723,250 +594,6 @@
     var charts = {};
     var schema = null;
     const STORAGE_KEY = 'dashboard_incidentes_state_v1';
-
-    const GITHUB_CONFIG_KEY = 'github_dashboard_incidentes_config';
-    const DATA_FILE_NAME = 'dashboard-incidentes-data.json';
-    
-    let githubConfig = null;
-    let lastKnownSavedAt = null;
-    let syncTimer = null;
-
-    
-    // ==========================================================
-    // GitHub Functions
-    // ==========================================================
-    function isAdminMode() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('admin') === '1';
-    }
-
-    function loadGitHubConfig() {
-      const saved = localStorage.getItem(GITHUB_CONFIG_KEY);
-      if (saved) {
-        githubConfig = JSON.parse(saved);
-        updateGitHubStatus(true);
-        console.log('✅ Configuración Admin GitHub cargada');
-        return true;
-      }
-      return false;
-    }
-
-    function saveGitHubConfig() {
-      const config = {
-        user: document.getElementById('githubUser').value.trim(),
-        repo: document.getElementById('githubRepo').value.trim(),
-        branch: document.getElementById('githubBranch').value.trim() || 'main',
-        token: document.getElementById('githubToken').value.trim()
-      };
-
-      if (!config.user || !config.repo || !config.token) {
-        alert('❌ Completa Usuario, Repositorio y Token');
-        return;
-      }
-
-      localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(config));
-      githubConfig = config;
-      updateGitHubStatus(true);
-      alert('✅ Configuración Admin guardada. Ya puedes cargar CSV/ZIP y se sincroniza con GitHub.');
-    }
-
-    async function testGitHubConnection() {
-      const config = {
-        user: document.getElementById('githubUser').value.trim(),
-        repo: document.getElementById('githubRepo').value.trim(),
-        token: document.getElementById('githubToken').value.trim()
-      };
-
-      if (!config.user || !config.repo || !config.token) {
-        alert('❌ Completa Usuario, Repositorio y Token');
-        return;
-      }
-
-      try {
-        const response = await fetch(`https://api.github.com/repos/${config.user}/${config.repo}`, {
-          headers: {
-            'Authorization': `token ${config.token}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        });
-
-        if (response.ok) {
-          const repo = await response.json();
-          alert(`✅ Conexión OK!\n\nRepo: ${repo.full_name}\nVisibilidad: ${repo.private ? 'Privado' : 'Público'}`);
-        } else if (response.status === 404) {
-          alert('❌ Repositorio no encontrado.');
-        } else if (response.status === 401) {
-          alert('❌ Token inválido o sin permisos.');
-        } else {
-          alert(`❌ Error ${response.status}: ${response.statusText}`);
-        }
-      } catch (error) {
-        alert(`❌ Error: ${error.message}`);
-      }
-    }
-
-    function updateGitHubStatus(connected) {
-      const statusEl = document.getElementById('githubStatus');
-      if (!statusEl) return;
-
-      if (connected && githubConfig) {
-        statusEl.textContent = `✓ Admin (${githubConfig.user}/${githubConfig.repo})`;
-        statusEl.className = 'config-status status-connected';
-
-        document.getElementById('githubUser').value = githubConfig.user;
-        document.getElementById('githubRepo').value = githubConfig.repo;
-        document.getElementById('githubBranch').value = githubConfig.branch || 'main';
-        document.getElementById('githubToken').value = githubConfig.token;
-      } else {
-        statusEl.textContent = 'No configurado';
-        statusEl.className = 'config-status status-disconnected';
-      }
-    }
-
-    function showGitHubConfigPanel() {
-      const panel = document.getElementById('githubConfigPanel');
-      if (panel) panel.style.display = 'block';
-    }
-
-    function getReadConfig() {
-      if (githubConfig?.user && githubConfig?.repo && githubConfig?.branch) {
-        return { user: githubConfig.user, repo: githubConfig.repo, branch: githubConfig.branch };
-      }
-      return GITHUB_PUBLIC_READ;
-    }
-
-    async function loadDataFromGitHub({ noCache = false } = {}) {
-      const cfg = getReadConfig();
-      if (!cfg?.user || !cfg?.repo || !cfg?.branch) return null;
-
-      try {
-        let rawUrl = `https://raw.githubusercontent.com/${cfg.user}/${cfg.repo}/${cfg.branch}/${DATA_FILE_NAME}`;
-        if (noCache) rawUrl += `?t=${Date.now()}`;
-
-        const res = await fetch(rawUrl, { cache: 'no-store' });
-        if (!res.ok) {
-          if (res.status === 404) return null;
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return await res.json();
-      } catch (e) {
-        console.error('❌ Error leyendo GitHub:', e);
-        return null;
-      }
-    }
-
-    async function saveDataToGitHub(data) {
-      if (!githubConfig?.token || !githubConfig?.user || !githubConfig?.repo || !githubConfig?.branch) {
-        console.log('ℹ️ Sin token admin, no se publica a GitHub.');
-        return false;
-      }
-
-      try {
-        const getUrl = `https://api.github.com/repos/${githubConfig.user}/${githubConfig.repo}/contents/${DATA_FILE_NAME}?ref=${githubConfig.branch}`;
-        let sha = null;
-
-        const getResponse = await fetch(getUrl, {
-          headers: {
-            'Authorization': `token ${githubConfig.token}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        });
-        if (getResponse.ok) {
-          const fileData = await getResponse.json();
-          sha = fileData.sha;
-        }
-
-        const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-        const commitData = {
-          message: `Actualizar datos dashboard - ${new Date().toLocaleString('es-CO')}`,
-          content,
-          branch: githubConfig.branch
-        };
-        if (sha) commitData.sha = sha;
-
-        const putUrl = `https://api.github.com/repos/${githubConfig.user}/${githubConfig.repo}/contents/${DATA_FILE_NAME}`;
-        const response = await fetch(putUrl, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${githubConfig.token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(commitData)
-        });
-
-        if (response.ok) {
-          console.log('✅ Datos publicados en GitHub');
-          return true;
-        } else {
-          console.warn('⚠️ No se pudo publicar en GitHub');
-          return false;
-        }
-      } catch (e) {
-        console.error('❌ Error escribiendo GitHub:', e);
-        return false;
-      }
-    }
-
-    async function checkForUpdates({ force = false } = {}) {
-      const remote = await loadDataFromGitHub({ noCache: true });
-      if (!remote?.meta?.savedAt) return;
-
-      if (!lastKnownSavedAt) {
-        lastKnownSavedAt = remote.meta.savedAt;
-        return;
-      }
-
-      const remoteTime = new Date(remote.meta.savedAt).getTime();
-      const localTime = new Date(lastKnownSavedAt).getTime();
-
-      if (force || remoteTime > localTime) {
-        console.log('🔄 Actualización detectada desde GitHub:', remote.meta.savedAt);
-        applyLoadedDataFromGitHub(remote);
-      }
-    }
-
-    function applyLoadedDataFromGitHub(data) {
-      try {
-        rawData = data.rawData || [];
-        schema = data.schema || null;
-        lastKnownSavedAt = data.meta?.savedAt || new Date().toISOString();
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        
-        renderAll();
-        
-        const lastUpdate = document.getElementById('lastUpdate');
-        if (lastUpdate) {
-          lastUpdate.textContent = 'Última actualización: ' + new Date(lastKnownSavedAt).toLocaleString('es-CO');
-        }
-        
-        updateBanner(data.meta?.fileName || 'CSV', new Date(lastKnownSavedAt));
-      } catch (e) {
-        console.error('applyLoadedDataFromGitHub error:', e);
-      }
-    }
-
-    function startRealtimeSync() {
-      if (syncTimer) clearInterval(syncTimer);
-      syncTimer = setInterval(() => checkForUpdates(), 60_000);
-
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) checkForUpdates();
-      });
-
-      window.addEventListener('focus', () => checkForUpdates());
-    }
-
-    async function loadSavedDataWithGitHub() {
-      const githubData = await loadDataFromGitHub({ noCache: true });
-      if (githubData) {
-        applyLoadedDataFromGitHub(githubData);
-        return true;
-      }
-      return false;
-    }
-
     function saveState() {
       try {
         const payload = {
@@ -976,11 +603,6 @@
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         updateBanner(payload.meta.fileName, new Date(payload.meta.savedAt));
-        
-        // Guardar en GitHub si es admin
-        if (githubConfig?.token) {
-          saveDataToGitHub(payload);
-        }
       } catch (err) { console.error('Error guardando estado:', err); }
     }
     function loadState() {
@@ -1016,68 +638,21 @@
     }
 
     /* ===================== Inicialización ===================== */
-    document.addEventListener('DOMContentLoaded', async function () {
+    document.addEventListener('DOMContentLoaded', function () {
       const fileInput = document.getElementById('csvFile');
       const btnPdfReport = document.getElementById('btnPdfReport');
       const btnExcelReport = document.getElementById('btnExcelReport');
       const btnClear = document.getElementById('btnClear');
-      
-      // Cargar config de GitHub
-      loadGitHubConfig();
-      
-      // Mostrar panel si es admin
-      if (isAdminMode()) {
-        showGitHubConfigPanel();
-      }
-      
-      // Intentar cargar desde GitHub primero
-      const loadedFromGitHub = await loadSavedDataWithGitHub();
-      
-      // Si no hay datos en GitHub, cargar del localStorage
-      if (!loadedFromGitHub) {
-        loadState();
-      }
-      
-      // Iniciar sincronización automática
-      startRealtimeSync();
+      loadState();
       if (fileInput) {
-        fileInput.addEventListener('change', async function (e) {const file = e.target.files && e.target.files[0];
+        fileInput.addEventListener('change', async function (e) {
+          const file = e.target.files && e.target.files[0];
           if (!file) return;
           window.__lastCsvName = file.name;
-          
-          // 🔹 NUEVA LÓGICA: Detectar si es ZIP o CSV
+          const buffer = await file.arrayBuffer();
           var csvText;
-          
-          if (file.name.toLowerCase().endsWith('.zip')) {
-            // Es un archivo ZIP - extraer el CSV
-            try {
-              const zip = await JSZip.loadAsync(file);
-              const csvFiles = Object.keys(zip.files).filter(f => 
-                f.toLowerCase().endsWith('.csv') && !f.startsWith('__MACOSX')
-              );
-              
-              if (csvFiles.length === 0) {
-                alert('El archivo ZIP no contiene ningún archivo CSV');
-                return;
-              }
-              
-              // Tomar el primer CSV encontrado
-              const csvFileName = csvFiles[0];
-              csvText = await zip.files[csvFileName].async('text');
-              console.log('CSV extraído del ZIP:', csvFileName);
-            } catch (err) {
-              console.error('Error procesando ZIP:', err);
-              alert('Error al procesar el archivo ZIP: ' + err.message);
-              return;
-            }
-          } else {
-            // Es un CSV directo - lógica original
-            const buffer = await file.arrayBuffer();
-            try { csvText = new TextDecoder('windows-1252').decode(buffer); }
-            catch (err) { csvText = new TextDecoder('utf-8').decode(buffer); }
-          }
-          
-          // El resto del código es IDÉNTICO al original
+          try { csvText = new TextDecoder('windows-1252').decode(buffer); }
+          catch (err) { csvText = new TextDecoder('utf-8').decode(buffer); }
           Papa.parse(csvText, {
             header: true,
             skipEmptyLines: true,
@@ -4044,96 +3619,7 @@ ${JSON.stringify(payloadKPI, null, 2)}
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
-      
-  /* Estilos para sincronización GitHub */
-  .github-config {
-    background: rgba(76, 201, 240, 0.05);
-    border: 2px solid var(--accent);
-    border-radius: 12px;
-    padding: 25px;
-    margin: 20px;
-    display: none;
-  }
-
-  .github-config h3 {
-    color: var(--text);
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.2em;
-  }
-
-  .config-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
-  }
-
-  .config-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .config-field label {
-    font-weight: 600;
-    color: var(--muted);
-    font-size: 0.9em;
-  }
-
-  .config-field input {
-    padding: 10px;
-    border: 2px solid #334155;
-    border-radius: 6px;
-    font-size: 0.9em;
-    transition: border-color 0.3s ease;
-    background: #1e293b;
-    color: var(--text);
-  }
-
-  .config-field input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .config-status {
-    display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.85em;
-    font-weight: 600;
-  }
-
-  .status-connected {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-  }
-
-  .status-disconnected {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-  }
-
-  .help-text {
-    font-size: 0.85em;
-    color: var(--muted);
-    margin-top: 15px;
-    line-height: 1.6;
-  }
-
-  .help-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .help-link:hover {
-    text-decoration: underline;
-  }
-
-</style>
+      </style>
     `;
         document.body.appendChild(overlay);
       }
