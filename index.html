@@ -1057,7 +1057,7 @@
         else if (CLOSED_TERMS.some(function (t) { return s.indexOf(norm(t)) >= 0; })) cerrados++;
         else if (RETURNED_TERMS.some(function (t) { return s.indexOf(norm(t)) >= 0; })) devuelto++;
       });
-      const total = abiertos + cerrados + devuelto + vacios;
+      const total = abiertos + cerrados + devuelto;
       return { abiertos: abiertos, cerrados: cerrados, devuelto: devuelto, vacios: vacios, total: total };
     }
     function getOpenClosedByResponsible(rows, respCol, stateCol) {
@@ -1196,8 +1196,7 @@
         const pieData = [
           { label: 'Abiertos (' + totals.abiertos + ')', value: totals.abiertos },
           { label: 'Cerrados (' + totals.cerrados + ')', value: totals.cerrados },
-          { label: 'Devuelto (' + totals.devuelto + ')', value: totals.devuelto },
-          { label: 'Vacíos (' + totals.vacios + ')', value: totals.vacios }
+          { label: 'Devuelto (' + totals.devuelto + ')', value: totals.devuelto }
         ];
         buildPieWithTitle('chartEstado', pieData, 'Abiertos vs Cerrados', 'Total: ' + totals.total);
       } else { showPlaceholder('chartEstado'); }
@@ -1770,8 +1769,7 @@ ${JSON.stringify(payloadKPI, null, 2)}
         const estadoPairs = [
           { label: 'Abiertos (' + t.abiertos + ')', value: t.abiertos },
           { label: 'Cerrados (' + t.cerrados + ')', value: t.cerrados },
-          { label: 'Devuelto (' + t.devuelto + ')', value: t.devuelto },
-          { label: 'Vacíos (' + t.vacios + ')', value: t.vacios }
+          { label: 'Devuelto (' + t.devuelto + ')', value: t.devuelto }
         ];
         addLandscapePage(doc);
         y = drawHeader(doc, 'Estado — Distribución (Tabla)', { bg: COLOR_BG, text: { r: 255, g: 255, b: 255 } });
